@@ -45,8 +45,8 @@ export function ChatContainer() {
     <div className="flex h-dvh flex-col bg-background">
       <header className="border-b px-4 py-3">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-sm font-semibold">CallBot</h1>
-          <p className="text-xs text-muted-foreground">
+          <h1 className="text-base font-semibold">CallBot</h1>
+          <p className="text-sm text-muted-foreground">
             Asistente virtual de CallBotIA
           </p>
         </div>
