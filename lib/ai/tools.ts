@@ -1,7 +1,17 @@
 import { tool } from "ai";
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import companyInfo from "@/data/company-info.json";
+import { adminDb } from "@/lib/db/firebase.admin";
 import { log } from "@/lib/logger";
+
+function getSessionId(context: unknown): string | undefined {
+  if (context && typeof context === "object" && "sessionId" in context) {
+    const id = (context as { sessionId?: unknown }).sessionId;
+    return typeof id === "string" ? id : undefined;
+  }
+  return undefined;
+}
 
 /**
  * getCompanyInfo
@@ -70,19 +80,40 @@ export const saveLead = tool({
         "Qué servicio o plan le interesa, en una o dos oraciones. Resumí lo que dijo el usuario, no inventes."
       ),
   }),
-  execute: async ({ name, email, interest }) => {
+  execute: async ({ name, email, interest }, options) => {
     const start = Date.now();
     const leadId = crypto.randomUUID();
+    const sessionId = getSessionId(options.experimental_context);
+
+    try {
+      await adminDb()
+        .collection("leads")
+        .doc(leadId)
+        .set({
+          sessionId: sessionId ?? null,
+          name,
+          email,
+          interest,
+          status: "new" as const,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+    } catch (err) {
+      log("error", "tool.saveLead.dbWriteFailed", {
+        leadId,
+        error: (err as Error).message,
+      });
+      throw err;
+    }
 
     log("info", "tool.saveLead", {
       leadId,
+      sessionId,
       name,
       email,
       interest,
       durationMs: Date.now() - start,
     });
 
-    // Stage 6 will persist this to Firestore.
     return {
       status: "saved" as const,
       leadId,
@@ -110,12 +141,33 @@ export const handoffToHuman = tool({
         "Urgencia. 'high' solo para casos urgentes o muy frustrados. 'medium' por defecto cuando el usuario pidió un humano."
       ),
   }),
-  execute: async ({ reason, urgency }) => {
+  execute: async ({ reason, urgency }, options) => {
     const start = Date.now();
     const ticketId = crypto.randomUUID();
+    const sessionId = getSessionId(options.experimental_context);
+
+    try {
+      await adminDb()
+        .collection("handoffs")
+        .doc(ticketId)
+        .set({
+          sessionId: sessionId ?? null,
+          reason,
+          urgency,
+          status: "pending" as const,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+    } catch (err) {
+      log("error", "tool.handoffToHuman.dbWriteFailed", {
+        ticketId,
+        error: (err as Error).message,
+      });
+      throw err;
+    }
 
     log("info", "tool.handoffToHuman", {
       ticketId,
+      sessionId,
       reason,
       urgency,
       durationMs: Date.now() - start,
