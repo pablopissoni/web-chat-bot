@@ -30,9 +30,8 @@ Timeline: 3-5 days.
 | AI SDK | Vercel AI SDK (`ai`, `@ai-sdk/openai`) | latest |
 | LLM | OpenAI GPT-4o-mini | via Vercel AI SDK |
 | Validation | Zod | for tool params and API contracts |
-| Persistence | Firebase Firestore | Admin SDK on server, Client SDK for reads |
-| Rate limiting | Upstash Ratelimit + Redis | free tier |
-| External API | OpenWeather (clima) | minimum required |
+| Persistence | Firebase Firestore | Admin SDK on server, sessionId in localStorage |
+| External API | OpenAI (counts as the required integration) | brief lists OpenAI as a valid option |
 | Deploy | Vercel | required by brief |
 
 > **Heads up**: Next.js 16 has breaking changes vs older training data. Always read the relevant guide in `node_modules/next/dist/docs/` before writing code that touches Next.js internals (routing, params, server actions, etc.).
@@ -76,18 +75,18 @@ components/
     └── ToolInvocation.tsx        # renders when agent uses a tool
 lib/
 ├── ai/
-│   ├── tools.ts                  # all agent tools (getWeather, saveLead, etc.)
+│   ├── tools.ts                  # all agent tools (getCompanyInfo, saveLead, handoffToHuman)
 │   ├── system-prompt.ts          # system prompt as a constant
 │   └── model.ts                  # model config (centralized)
-├── db/
-│   ├── firebase.client.ts        # browser SDK
-│   ├── firebase.admin.ts         # server SDK (route handlers only)
-│   └── schema.ts                 # TS types for Firestore documents
+├── db/                           # stage 6
+│   └── firebase.admin.ts         # Admin SDK for route handlers
 ├── utils.ts                      # cn() helper from shadcn
-└── logger.ts                     # structured logging helper
-types/
-└── chat.ts                       # shared types (Message, MessageRole, etc.)
+└── logger.ts                     # structured JSON logger
+data/
+└── company-info.json             # mock CallBotIA info consumed by getCompanyInfo
 ```
+
+Message types come from the SDK (`UIMessage` from `ai`). There is no `types/chat.ts` — the previous custom type was removed when migrating to the v6 message shape.
 
 ## Environment Variables
 
@@ -96,13 +95,9 @@ All required vars are documented in `.env.example`. Never commit `.env.local`. T
 | Variable | Used in | Required |
 |----------|---------|----------|
 | `OPENAI_API_KEY` | server | yes |
-| `OPENWEATHER_API_KEY` | server (getWeather tool) | yes |
-| `NEXT_PUBLIC_FIREBASE_*` | client SDK init | yes |
-| `FIREBASE_PROJECT_ID` | admin SDK | yes |
-| `FIREBASE_CLIENT_EMAIL` | admin SDK | yes |
-| `FIREBASE_PRIVATE_KEY` | admin SDK (escape `\n`) | yes |
-| `UPSTASH_REDIS_REST_URL` | rate limiting | optional |
-| `UPSTASH_REDIS_REST_TOKEN` | rate limiting | optional |
+| `FIREBASE_PROJECT_ID` | admin SDK (stage 6) | yes |
+| `FIREBASE_CLIENT_EMAIL` | admin SDK (stage 6) | yes |
+| `FIREBASE_PRIVATE_KEY` | admin SDK, escape `\n` (stage 6) | yes |
 
 When adding a new var, update `.env.example` in the same commit.
 
@@ -133,7 +128,7 @@ When adding a new var, update `.env.example` in the same commit.
 
 ### Why server-only DB writes
 - Even though Firestore Client SDK can write directly, all writes go through API routes.
-- Reasons: enforce validation with Zod, apply rate limiting, keep security rules simple (deny client writes).
+- Reasons: enforce validation with Zod, keep security rules simple (deny client writes), centralize logging.
 
 ### Why no `src/` folder
 - Next.js allows both layouts; this project keeps `app/`, `components/`, `lib/` at the root (default scaffold from Vercel deploy).
@@ -161,7 +156,7 @@ When adding a new var, update `.env.example` in the same commit.
 - Keep the system prompt in `lib/ai/system-prompt.ts` for easy iteration.
 
 ### Don't
-- Don't add new dependencies without justification. We already have Tailwind, shadcn, AI SDK, Firebase, Zod. Almost anything else is overkill.
+- Don't add new dependencies without justification. We already have Tailwind, shadcn, AI SDK v6, Zod, and Firebase Admin (stage 6). Almost anything else is overkill.
 - Don't install icon libraries beyond Lucide (it ships with shadcn).
 - Don't write SQL or set up Postgres. We use Firestore.
 - Don't add authentication unless explicitly requested. Use `sessionId` in localStorage.
@@ -173,7 +168,7 @@ When adding a new var, update `.env.example` in the same commit.
 
 ## Agent Tools (current)
 
-All tools live in `lib/ai/tools.ts`. When adding a new tool, follow this pattern:
+All tools live in `lib/ai/tools.ts`. AI SDK v6 uses `inputSchema` (NOT `parameters`):
 
 ```ts
 import { tool } from 'ai';
@@ -181,13 +176,13 @@ import { z } from 'zod';
 
 export const toolName = tool({
   description: 'Concise description that helps the model decide WHEN to use this',
-  parameters: z.object({
+  inputSchema: z.object({
     param: z.string().describe('what this param means'),
   }),
   execute: async ({ param }) => {
-    // 1. Log invocation start
+    // 1. Capture start timestamp
     // 2. Do work
-    // 3. Log completion with duration
+    // 3. log('info', 'tool.<name>', { ...params, durationMs })
     // 4. Return a plain JSON-serializable object
     return { status: 'ok', data: '...' };
   },
@@ -195,39 +190,36 @@ export const toolName = tool({
 ```
 
 Implemented tools:
-- `getWeather` — external API integration (OpenWeather)
-- `saveLead` — captures interested users into Firestore
-- `handoffToHuman` — simulates agent handoff (brief requirement)
-- `getCurrentTime` — utility for testing tool chaining
+- `getCompanyInfo` — returns sliced data from `data/company-info.json` (services, pricing, contact, faq, overview)
+- `saveLead` — captures a prospect; logs only in stage 5, will write to Firestore in stage 6
+- `handoffToHuman` — simulates agent handoff (explicit brief requirement)
 
 When implementing a new tool, also add a sample prompt that triggers it to the README's "Demo prompts" section.
 
 ## Current Status
 
-- [x] Etapa 1: Project foundations (TS strict + `noUncheckedIndexedAccess`, shadcn init with `radix-nova` preset, `.env.example` created, chat components installed: button, input, card, scroll-area, avatar, separator, sonner)
-- [ ] Etapa 2: Chat UI with mock data
-- [ ] Etapa 3: Basic OpenAI integration (no streaming yet)
-- [ ] Etapa 4: Streaming with `useChat` hook
-- [ ] Etapa 5: Agentic tools (getWeather, saveLead, handoffToHuman)
-- [ ] Etapa 6: Firebase persistence
-- [ ] Etapa 7: External integration validation
-- [ ] Etapa 8: Polish (rate limiting, error handling, a11y, SEO)
-- [ ] Etapa 9: Deploy + README + architecture diagram + video walkthrough
-- [ ] Etapa 10 (bonus): Docker, structured logs, RAG (if time permits)
+- [x] Etapa 1: Project foundations (TS strict + `noUncheckedIndexedAccess`, shadcn init with `radix-nova` preset, chat components installed)
+- [x] Etapa 2: Chat UI with mock data
+- [x] Etapa 3: Basic OpenAI integration (`generateText`)
+- [x] Etapa 4: Streaming with `useChat` hook (SDK v6: `streamText` + `toUIMessageStreamResponse`)
+- [x] Etapa 5: Agentic tools (`getCompanyInfo`, `saveLead`, `handoffToHuman`) + tool invocation chips in UI
+- [ ] Etapa 6: Firestore persistence (sessions/{id}/messages + leads collection)
+- [ ] Etapa 8 (recortada): Markdown rendering, mobile check, error handling polish
+- [ ] Etapa 9: Deploy + README + architecture diagram (CRITICAL — do not skip)
 
 When completing a stage, check the box here and commit with a descriptive message.
 
 ## Bonus Points Targeted
 
-From the brief's bonus list, prioritized by value/effort:
+From the brief's bonus list, prioritized by value/effort given the 2-day window:
 
-- **Realtime streaming** — covered by Vercel AI SDK
-- **Firebase** — used for persistence
-- **SEO técnico** — metadata API, sitemap, robots.txt
-- **Logs & observabilidad** — structured JSON logs per tool call
-- **Docker** — Dockerfile for local dev parity
-- **RAG básico + Vector DB** (stretch) — Upstash Vector + OpenAI embeddings, only if remaining time allows
-- ~~Cloudflare~~ — skipped, redundant with Vercel
+- **Realtime streaming** — covered by Vercel AI SDK (done)
+- **Firebase** — stage 6 (sessionId-based persistence)
+- **Logs & observabilidad** — structured JSON logs already in place via `lib/logger.ts`
+- ~~SEO técnico extra~~ — basic metadata only; sitemap/robots skipped for time
+- ~~Docker~~ — skipped, deploy goes straight to Vercel
+- ~~RAG / Vector DB~~ — skipped, high effort
+- ~~Cloudflare~~ — redundant with Vercel
 - ~~Voice AI~~ — skipped, high risk for the time available
 
 ## Reference Documentation
@@ -245,10 +237,11 @@ Do not paste large doc excerpts into code. Link them in commit messages if neede
 
 These prompts exercise each tool and the agentic behavior:
 
-- "¿Qué tiempo hace en Córdoba?" → triggers `getWeather`
-- "¿Cómo está el clima en Buenos Aires y Madrid?" → triggers `getWeather` twice (multi-step)
-- "Me interesa contratar sus servicios, soy Pablo, pablo@test.com" → triggers `saveLead`
+- "¿Qué servicios ofrece CallBotIA?" → triggers `getCompanyInfo` (topic=services)
+- "¿Cuánto cuesta el plan Business?" → triggers `getCompanyInfo` (topic=pricing)
+- "¿Cómo los contacto?" → triggers `getCompanyInfo` (topic=contact)
+- "Me interesa contratar, soy Pablo, pablo@test.com, quiero el plan Business" → triggers `saveLead`
 - "Quiero hablar con una persona" → triggers `handoffToHuman`
-- "¿Qué hora es en Tokyo?" → triggers `getCurrentTime`
+- "Cuáles son los planes y después agendame, soy Ana ana@test.com" → multi-step: `getCompanyInfo` + `saveLead`
 
 Add these to the README so the reviewer can test quickly.
