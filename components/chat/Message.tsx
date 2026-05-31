@@ -1,14 +1,20 @@
 import { Bot, User } from "lucide-react";
+import type { UIMessage } from "ai";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import type { Message as ChatMessage } from "@/types/chat";
 
 interface MessageProps {
-  message: ChatMessage;
+  message: UIMessage;
 }
 
 export function Message({ message }: MessageProps) {
   const isUser = message.role === "user";
+
+  // Renderizamos solo las partes de texto. Tool calls se renderizarán en Etapa 5.
+  const text = message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("");
 
   return (
     <div
@@ -33,7 +39,7 @@ export function Message({ message }: MessageProps) {
             : "bg-muted text-foreground rounded-bl-sm"
         )}
       >
-        {message.content}
+        {text}
       </div>
 
       {isUser && (

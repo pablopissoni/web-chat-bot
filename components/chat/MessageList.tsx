@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { UIMessage } from "ai";
 import { Message } from "@/components/chat/Message";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
-import type { Message as ChatMessage } from "@/types/chat";
 
 interface MessageListProps {
-  messages: ChatMessage[];
+  messages: UIMessage[];
   isLoading?: boolean;
 }
 
