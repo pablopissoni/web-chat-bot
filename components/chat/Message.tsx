@@ -1,6 +1,7 @@
 import { Bot, User } from "lucide-react";
 import type { UIMessage } from "ai";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MessageMarkdown } from "@/components/chat/MessageMarkdown";
 import { ToolInvocation } from "@/components/chat/ToolInvocation";
 import { cn } from "@/lib/utils";
 
@@ -34,13 +35,19 @@ export function Message({ message }: MessageProps) {
               <div
                 key={i}
                 className={cn(
-                  "rounded-2xl px-4 py-2.5 text-base leading-relaxed whitespace-pre-wrap",
+                  "rounded-2xl px-4 py-2.5",
                   isUser
                     ? "bg-primary text-primary-foreground rounded-br-sm"
                     : "bg-muted text-foreground rounded-bl-sm"
                 )}
               >
-                {part.text}
+                {isUser ? (
+                  <span className="text-base leading-relaxed whitespace-pre-wrap">
+                    {part.text}
+                  </span>
+                ) : (
+                  <MessageMarkdown variant="assistant">{part.text}</MessageMarkdown>
+                )}
               </div>
             );
           }
