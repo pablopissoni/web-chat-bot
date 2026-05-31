@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 
+const SESSION_KEY = "chatSessionId";
+
 const WELCOME_MESSAGE = {
   id: "welcome",
   role: "assistant" as const,
@@ -17,15 +19,52 @@ const WELCOME_MESSAGE = {
   ],
 };
 
+function readOrCreateSessionId(): string {
+  if (typeof window === "undefined") return "";
+  let id = localStorage.getItem(SESSION_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, id);
+  }
+  return id;
+}
+
 export function ChatContainer() {
+  const [sessionId, setSessionId] = useState<string>("");
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status, error } = useChat();
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Mostramos el mensaje de bienvenida solo cuando no hay historial.
-  const messagesToShow =
-    messages.length === 0 ? [WELCOME_MESSAGE] : messages;
+  const { messages, sendMessage, setMessages, status, error } = useChat();
 
-  const isBusy = status === "submitted" || status === "streaming";
+  // Build the sessionId once on mount.
+  useEffect(() => {
+    setSessionId(readOrCreateSessionId());
+  }, []);
+
+  // Load past messages once we know the sessionId.
+  useEffect(() => {
+    if (!sessionId || historyLoaded) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/messages`);
+        if (!res.ok) throw new Error(`Server responded ${res.status}`);
+        const data: { messages: typeof messages } = await res.json();
+        if (!cancelled && data.messages.length > 0) {
+          setMessages(data.messages);
+        }
+      } catch (err) {
+        console.error("[chat] history load failed:", err);
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, historyLoaded, setMessages]);
 
   useEffect(() => {
     if (error) {
@@ -34,11 +73,14 @@ export function ChatContainer() {
     }
   }, [error]);
 
+  const messagesToShow = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
+  const isBusy = status === "submitted" || status === "streaming";
+
   const handleSubmit = () => {
     const text = input.trim();
-    if (!text || isBusy) return;
+    if (!text || isBusy || !sessionId) return;
     setInput("");
-    void sendMessage({ text });
+    void sendMessage({ text }, { body: { sessionId } });
   };
 
   return (
@@ -61,7 +103,7 @@ export function ChatContainer() {
         value={input}
         onChange={setInput}
         onSubmit={handleSubmit}
-        disabled={isBusy}
+        disabled={isBusy || !sessionId}
       />
     </div>
   );
