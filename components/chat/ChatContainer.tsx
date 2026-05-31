@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { toast } from "sonner";
 import { MessageList } from "@/components/chat/MessageList";
@@ -73,7 +73,13 @@ export function ChatContainer() {
     }
   }, [error]);
 
-  const messagesToShow = messages.length === 0 ? [WELCOME_MESSAGE] : messages;
+  // Memo so the array reference is stable across re-renders that don't change messages.
+  // Without this, typing in the input creates a new [WELCOME_MESSAGE] on every keystroke,
+  // which triggers MessageList's scroll effect and breaks the keyboard layout on mobile.
+  const messagesToShow = useMemo(
+    () => (messages.length === 0 ? [WELCOME_MESSAGE] : messages),
+    [messages]
+  );
   const isBusy = status === "submitted" || status === "streaming";
 
   const handleSubmit = () => {
@@ -84,8 +90,8 @@ export function ChatContainer() {
   };
 
   return (
-    <div className="flex h-dvh flex-col bg-background">
-      <header className="border-b px-4 py-3">
+    <div className="flex min-h-svh flex-col bg-background">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur px-4 py-3">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-base font-semibold">CallBot</h1>
           <p className="text-sm text-muted-foreground">
@@ -99,12 +105,14 @@ export function ChatContainer() {
         isLoading={status === "submitted"}
       />
 
-      <ChatInput
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        disabled={isBusy || !sessionId}
-      />
+      <div className="sticky bottom-0 z-10 bg-background">
+        <ChatInput
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          disabled={isBusy || !sessionId}
+        />
+      </div>
     </div>
   );
 }
