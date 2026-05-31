@@ -1,0 +1,63 @@
+{
+  "company": "CallBotIA",
+  "tagline": "Soluciones de IA conversacional para empresas",
+  "description": "CallBotIA es una empresa argentina que desarrolla asistentes virtuales con IA para automatizar atención al cliente, captación de leads y procesos de soporte por chat, voz y WhatsApp.",
+  "services": [
+    {
+      "name": "ChatBots con IA",
+      "description": "Asistentes conversacionales personalizados para tu web, integrados con tu base de conocimiento y herramientas internas."
+    },
+    {
+      "name": "Voice AI",
+      "description": "Agentes de voz con IA para atención telefónica 24/7, capaces de derivar a humanos cuando es necesario."
+    },
+    {
+      "name": "Integraciones WhatsApp",
+      "description": "Bots de WhatsApp Business que califican leads, agendan reuniones y responden consultas en tiempo real."
+    }
+  ],
+  "pricing": [
+    {
+      "plan": "Starter",
+      "price": "USD 99/mes",
+      "includes": ["Hasta 1.000 conversaciones/mes", "1 canal (web o WhatsApp)", "Soporte por email"]
+    },
+    {
+      "plan": "Business",
+      "price": "USD 299/mes",
+      "includes": ["Hasta 10.000 conversaciones/mes", "Todos los canales", "Integración con CRM", "Soporte prioritario"]
+    },
+    {
+      "plan": "Enterprise",
+      "price": "A convenir",
+      "includes": ["Conversaciones ilimitadas", "SLA 99.9%", "Onboarding dedicado", "Modelos custom"]
+    }
+  ],
+  "contact": {
+    "email": "hola@callbotia.com",
+    "hours": "Lunes a viernes, 9 a 18 hs (GMT-3)",
+    "responseTime": "Respondemos en menos de 24 hs hábiles"
+  },
+  "faq": [
+    {
+      "q": "¿Qué modelos de IA usan?",
+      "a": "Trabajamos con OpenAI (GPT-4o, GPT-4o-mini), modelos open source vía Ollama (Llama) y modelos custom para clientes Enterprise."
+    },
+    {
+      "q": "¿Cuánto tarda la implementación?",
+      "a": "Para los planes Starter y Business, entre 1 y 2 semanas desde la firma. Enterprise depende del alcance, típicamente 4 a 8 semanas."
+    },
+    {
+      "q": "¿Mis datos están seguros?",
+      "a": "Sí. Cumplimos GDPR y Ley 25.326 de protección de datos. Los datos sensibles no se usan para reentrenar modelos."
+    },
+    {
+      "q": "¿Puedo probar antes de contratar?",
+      "a": "Sí, ofrecemos una demo gratuita de 14 días con datos de prueba. Pedinos contacto y coordinamos."
+    },
+    {
+      "q": "¿En qué idiomas funciona?",
+      "a": "Por defecto, español rioplatense e inglés. Cualquier idioma soportado por OpenAI está disponible bajo pedido."
+    }
+  ]
+}
