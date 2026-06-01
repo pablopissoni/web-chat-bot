@@ -10,6 +10,7 @@ interface ChatInputProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
+  leadingSlot?: React.ReactNode;
 }
 
 export function ChatInput({
@@ -17,6 +18,7 @@ export function ChatInput({
   onChange,
   onSubmit,
   disabled = false,
+  leadingSlot,
 }: ChatInputProps) {
   const isEmpty = value.trim().length === 0;
 
@@ -37,9 +39,10 @@ export function ChatInput({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t bg-background px-4 py-3"
+      className="bg-background px-4 py-3"
     >
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
+      <div className="mx-auto flex max-w-3xl items-center gap-2">
+        {leadingSlot}
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -50,7 +53,7 @@ export function ChatInput({
           aria-label="Mensaje"
           disabled={disabled}
           className={cn(
-            "min-h-10 max-h-40 flex-1 resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none transition-colors",
+            "min-h-11 max-h-40 flex-1 resize-none rounded-lg border border-input bg-transparent px-3 py-2.5 text-base outline-none transition-colors",
             "placeholder:text-muted-foreground",
             "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
             "disabled:cursor-not-allowed disabled:opacity-50"
@@ -58,11 +61,12 @@ export function ChatInput({
         />
         <Button
           type="submit"
-          size="icon"
+          size="icon-lg"
           disabled={isEmpty || disabled}
           aria-label="Enviar mensaje"
+          className="h-11 w-11 shrink-0"
         >
-          <Send />
+          <Send className="pointer-events-none" />
         </Button>
       </div>
     </form>

@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { EmptyState } from "@/components/chat/EmptyState";
+import { SuggestionsPopover } from "@/components/chat/SuggestionsPopover";
 
 const SESSION_KEY = "chatSessionId";
-
-const WELCOME_MESSAGE = {
-  id: "welcome",
-  role: "assistant" as const,
-  parts: [
-    {
-      type: "text" as const,
-      text: "¡Hola! Soy CallBot, el asistente virtual de CallBotIA. ¿En qué puedo ayudarte hoy?",
-    },
-  ],
-};
 
 function readOrCreateSessionId(): string {
   if (typeof window === "undefined") return "";
@@ -73,44 +66,75 @@ export function ChatContainer() {
     }
   }, [error]);
 
-  // Memo so the array reference is stable across re-renders that don't change messages.
-  // Without this, typing in the input creates a new [WELCOME_MESSAGE] on every keystroke,
-  // which triggers MessageList's scroll effect and breaks the keyboard layout on mobile.
-  const messagesToShow = useMemo(
-    () => (messages.length === 0 ? [WELCOME_MESSAGE] : messages),
-    [messages]
-  );
   const isBusy = status === "submitted" || status === "streaming";
+  const showEmptyState = messages.length === 0 && historyLoaded;
+
+  const submitText = (text: string) => {
+    if (!text.trim() || isBusy || !sessionId) return;
+    void sendMessage({ text }, { body: { sessionId } });
+  };
 
   const handleSubmit = () => {
     const text = input.trim();
-    if (!text || isBusy || !sessionId) return;
+    if (!text) return;
     setInput("");
-    void sendMessage({ text }, { body: { sessionId } });
+    submitText(text);
+  };
+
+  const handleNewConversation = () => {
+    // Generate a fresh sessionId in localStorage. Old data stays in Firestore.
+    const newId = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, newId);
+    setSessionId(newId);
+    setMessages([]);
+    setInput("");
+    toast.success("Nueva conversación iniciada");
   };
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur px-4 py-3">
-        <div className="mx-auto max-w-3xl">
-          <h1 className="text-base font-semibold">CallBot</h1>
-          <p className="text-sm text-muted-foreground">
-            Asistente virtual de CallBotIA
-          </p>
+        <div className="mx-auto flex max-w-3xl items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold">CallBot</h1>
+            <p className="text-sm text-muted-foreground">Asistente virtual de CallBotIA</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleNewConversation}
+            disabled={isBusy || !sessionId}
+            aria-label="Empezar una nueva conversación"
+          >
+            <Plus className="size-3.5" />
+            Empezar de nuevo
+          </Button>
         </div>
       </header>
 
-      <MessageList
-        messages={messagesToShow}
-        isLoading={status === "submitted"}
-      />
+      {showEmptyState ? (
+        <div className="flex flex-1 items-center">
+          <EmptyState onPromptClick={submitText} disabled={isBusy || !sessionId} />
+        </div>
+      ) : (
+        <MessageList messages={messages} isLoading={status === "submitted"} />
+      )}
 
-      <div className="sticky bottom-0 z-10 bg-background">
+      <div className="sticky bottom-0 z-10 border-t bg-background">
         <ChatInput
           value={input}
           onChange={setInput}
           onSubmit={handleSubmit}
           disabled={isBusy || !sessionId}
+          leadingSlot={
+            !showEmptyState ? (
+              <SuggestionsPopover
+                onPromptClick={submitText}
+                disabled={isBusy || !sessionId}
+              />
+            ) : null
+          }
         />
       </div>
     </div>
