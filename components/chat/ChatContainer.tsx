@@ -9,6 +9,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { EmptyState } from "@/components/chat/EmptyState";
 import { SuggestionsPopover } from "@/components/chat/SuggestionsPopover";
+import { HistoryLoading } from "@/components/chat/HistoryLoading";
 
 const SESSION_KEY = "chatSessionId";
 
@@ -114,7 +115,9 @@ export function ChatContainer() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
-        {showEmptyState ? (
+        {!historyLoaded ? (
+          <HistoryLoading />
+        ) : showEmptyState ? (
           <div className="flex h-full items-center">
             <EmptyState onPromptClick={submitText} disabled={isBusy || !sessionId} />
           </div>
