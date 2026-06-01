@@ -92,8 +92,8 @@ export function ChatContainer() {
   };
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur px-4 py-3">
+    <div className="flex h-svh flex-col bg-background">
+      <header className="shrink-0 border-b bg-background px-4 py-3">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <div>
             <h1 className="text-base font-semibold">CallBot</h1>
@@ -113,15 +113,17 @@ export function ChatContainer() {
         </div>
       </header>
 
-      {showEmptyState ? (
-        <div className="flex flex-1 items-center">
-          <EmptyState onPromptClick={submitText} disabled={isBusy || !sessionId} />
-        </div>
-      ) : (
-        <MessageList messages={messages} isLoading={status === "submitted"} />
-      )}
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        {showEmptyState ? (
+          <div className="flex h-full items-center">
+            <EmptyState onPromptClick={submitText} disabled={isBusy || !sessionId} />
+          </div>
+        ) : (
+          <MessageList messages={messages} isLoading={status === "submitted"} />
+        )}
+      </main>
 
-      <div className="sticky bottom-0 z-10 border-t bg-background">
+      <footer className="shrink-0 border-t bg-background">
         <ChatInput
           value={input}
           onChange={setInput}
@@ -136,7 +138,7 @@ export function ChatContainer() {
             ) : null
           }
         />
-      </div>
+      </footer>
     </div>
   );
 }
