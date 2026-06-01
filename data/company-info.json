@@ -35,6 +35,8 @@
   ],
   "contact": {
     "email": "hola@callbotia.com",
+    "whatsapp": "+54 9 11 5555-1234",
+    "whatsappLink": "https://wa.me/5491155551234?text=Hola%2C%20vengo%20del%20chat%20de%20CallBotIA",
     "location": "Ciudad Autónoma de Buenos Aires, Argentina",
     "hours": "Lunes a viernes, 9 a 18 hs (GMT-3)",
     "responseTime": "Respondemos en menos de 24 hs hábiles"
