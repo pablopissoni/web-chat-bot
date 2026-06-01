@@ -4,7 +4,7 @@
 >
 > Prueba técnica Senior Full Stack AI Developer — CallBotIA.
 
-Un chatbot conversacional con capacidades agénticas (tool calling + derivación a humano) para CallBotIA, una empresa de soluciones de IA conversacional. Streaming en tiempo real, persistencia de historial y captación de leads.
+Un chatbot conversacional con capacidades agénticas (tool calling + derivación a humano) para CallBotIA, una empresa argentina de soluciones de IA conversacional. Streaming en tiempo real, persistencia de historial, captación de leads y derivación a operador humano.
 
 ---
 
@@ -15,12 +15,13 @@ Un chatbot conversacional con capacidades agénticas (tool calling + derivación
 | Framework | Next.js 16 (App Router) | Turbopack, React 19, route handlers como backend |
 | Lenguaje | TypeScript | `strict` + `noUncheckedIndexedAccess` |
 | UI | Tailwind CSS v4 + shadcn/ui | Preset `radix-nova`, base `neutral`, fuente Inter |
-| Markdown | `react-markdown` + `remark-gfm` | Negritas, listas, código, links en respuestas |
+| Markdown | `react-markdown` + `remark-gfm` | Negritas, listas, código, links clickeables en respuestas |
 | IA | Vercel AI SDK v6 (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) | Streaming SSE + tool calling oficial |
 | LLM | OpenAI GPT-4o-mini | Buena relación calidad/costo para tool calling |
 | Validación | Zod v4 | Inputs de tools y bodies de la API |
 | Persistencia | Firebase Firestore (Admin SDK) | Sesiones, mensajes, leads y handoffs |
-| Notificaciones | Sonner | Toasts de error en cliente |
+| Notificaciones | Sonner | Toasts de error y confirmación en cliente |
+| SEO | Next.js metadata API + `next/og` | Sitemap, robots, Open Graph image generada al edge |
 | Deploy | Vercel | Frontend + API en el mismo deploy |
 
 ---
@@ -79,6 +80,9 @@ El Firestore Client SDK también permite escribir desde el browser, pero hacerlo
 ### Por qué `saveLead`/`handoffToHuman` persisten fuera de la conversación
 Un lead capturado tiene que ser consultable por ventas; un handoff, por soporte. Si vivieran solo dentro de `sessions/:id/messages/`, encontrarlos requeriría una collection group query costosa filtrando por tipo de tool. Las colecciones planas `/leads` y `/handoffs` separan la **vista de auditoría** (transcripción completa) de la **vista de negocio** (acciones consultables).
 
+### Por qué layout sin sticky y un único contenedor scrolleable
+El input no vive dentro del flujo de scroll del body: el container es `h-svh` con `header` + `main flex-1 min-h-0 overflow-y-auto` + `footer`. Esto evita los bugs clásicos en mobile (input que se va detrás del teclado al escribir, gaps al final del streaming, scroll que llega "a medias"). El `min-h-0` desactiva el auto-min de flexbox que pisa el overflow.
+
 ---
 
 ## Capacidades agénticas
@@ -89,7 +93,7 @@ El bot no es un chat estático: usa **tool calling con multi-step reasoning** (`
 
 | Tool | Qué hace | Persiste en |
 |------|----------|-------------|
-| `getCompanyInfo` | Devuelve datos oficiales de CallBotIA (servicios, planes, contacto, FAQ) desde `data/company-info.json`. | Solo en el transcript |
+| `getCompanyInfo` | Devuelve datos oficiales de CallBotIA (servicios, planes, contacto + email, ubicación, link de WhatsApp `wa.me`, FAQ) desde `data/company-info.json`. | Solo en el transcript |
 | `saveLead` | Captura nombre + email + interés cuando el usuario quiere contratar. | `/leads` |
 | `handoffToHuman` | Simula derivación a un agente humano con motivo y nivel de urgencia. | `/handoffs` |
 
@@ -100,7 +104,21 @@ El system prompt instruye explícitamente a:
 - Decir "no tengo esa información" y derivar (`handoffToHuman`) cuando la pregunta escapa al alcance.
 - Pedir los datos faltantes en lenguaje natural antes de invocar una tool incompleta.
 
-Verificable con el prompt: *"¿Dónde está la oficina de CallBotIA en Tokio?"* → el bot reconoce que no sabe y deriva, en lugar de inventar una dirección.
+Verificable con el prompt: *"¿Dónde está la oficina de CallBotIA en Tokio?"* → el bot reconoce que la sede está en Buenos Aires y deriva, en lugar de inventar una dirección en Tokio.
+
+---
+
+## Features de UX
+
+| Feature | Detalle |
+|---------|---------|
+| **Empty state** | Al entrar sin historial, se muestran 4 cards clickeables con prompts sugeridos (servicios, precios, contratar, hablar con humano). Reduce fricción y guía al usuario. |
+| **Sugerencias en input** | Una vez iniciada la conversación, un botón ✨ junto al input abre un popover con los mismos prompts, accesible en cualquier momento. |
+| **Empezar de nuevo** | Botón en el header que genera un `sessionId` nuevo y limpia la vista. Los datos viejos quedan en Firestore para auditoría. |
+| **Tool chips inline** | Cada invocación de tool se muestra como un chip ("Consultando información de CallBotIA", "Registrando tu interés", "Derivando con un agente humano") con estado running/done/error. El comportamiento agéntico es visible, no caja negra. |
+| **Markdown en respuestas** | Las respuestas del bot renderizan negritas, listas, código y links clickeables (incluido el link de WhatsApp). |
+| **Loading state** | Al refrescar, se muestra un spinner "Recuperando conversación..." mientras se carga el historial de Firestore. |
+| **Mobile-first** | Layout con `h-svh` y `min-h-0` resuelve los bugs clásicos del teclado mobile. Targets touch de 44×44 px para accesibilidad. |
 
 ---
 
@@ -143,12 +161,13 @@ Cada prompt ejercita una capacidad distinta:
 
 - `¿Qué servicios ofrece CallBotIA?` → invoca `getCompanyInfo` (topic=services)
 - `¿Cuánto cuesta el plan Business?` → invoca `getCompanyInfo` (topic=pricing)
+- `¿Cómo los contacto por WhatsApp?` → invoca `getCompanyInfo` (topic=contact), devuelve link `wa.me` clickeable
 - `Me interesa contratar, soy Pablo, pablo@test.com, quiero el plan Business` → invoca `saveLead`, guarda doc en `/leads`
 - `Quiero hablar con una persona` → invoca `handoffToHuman`, guarda doc en `/handoffs`
 - `Cuáles son los planes y después agendame, soy Ana ana@test.com` → multi-step: `getCompanyInfo` + `saveLead` en un solo turno
 - `¿Dónde está la oficina de CallBotIA en Tokio?` → verifica el guardrail anti-alucinación
 
-Cada invocación se ve en la UI como un chip ("Consultando información de CallBotIA", "Registrando tu interés", "Derivando con un agente humano"), no como caja negra.
+Cada invocación se ve en la UI como un chip, no como caja negra.
 
 ---
 
@@ -158,17 +177,18 @@ Cada invocación se ve en la UI como un chip ("Consultando información de CallB
 |-----------|--------|
 | Next.js App Router + TS + Tailwind + shadcn/ui | ✅ |
 | Chat en tiempo real | ✅ streaming SSE |
-| Diseño responsive | ✅ Tailwind mobile-first |
-| Historial de conversación | ✅ Firestore |
-| Estados de loading | ✅ typing indicator + disabled input |
-| UX/UI moderna | ✅ shadcn radix-nova, Inter, markdown en respuestas |
+| Diseño responsive | ✅ Tailwind mobile-first + targets touch 44px |
+| Historial de conversación | ✅ Firestore con `sessionId` |
+| Estados de loading | ✅ typing indicator + chips de tools + HistoryLoading + disabled input |
+| UX/UI moderna | ✅ shadcn radix-nova, Inter, markdown, empty state con sugerencias |
 | Backend con IA + streaming responses | ✅ Opción B (OpenAI) |
-| Ingeniería agéntica obligatoria | ✅ tool calling + handoff + multi-step |
+| Ingeniería agéntica obligatoria | ✅ tool calling + handoff + multi-step reasoning |
 | Integración externa | ✅ OpenAI |
 | Deploy Vercel | ✅ |
 | README técnico + arquitectura + env vars | ✅ |
-| **Bonus:** Firebase | ✅ |
+| **Bonus:** Firebase | ✅ `sessions`, `messages`, `leads`, `handoffs` |
 | **Bonus:** Realtime streaming | ✅ |
+| **Bonus:** SEO técnico | ✅ sitemap, robots, OG image dinámica, Twitter card, favicon |
 | **Bonus:** Logs estructurados | ✅ JSON line por tool y por persist |
 
 ---
@@ -176,6 +196,8 @@ Cada invocación se ve en la UI como un chip ("Consultando información de CallB
 ## TL;DR
 
 - Chatbot Next.js + OpenAI con streaming, tool calling y handoff simulado.
+- 3 tools agénticas (`getCompanyInfo`, `saveLead`, `handoffToHuman`) con guardrails anti-alucinación y multi-step reasoning hasta 5 pasos.
 - Persiste sesiones, mensajes, leads y handoffs en Firestore (sessionId en localStorage, sin Auth).
-- 3 tools con guardrails contra alucinación, multi-step reasoning hasta 5 pasos.
-- Deployado en Vercel. Listo para probar con los prompts de la sección anterior.
+- UX cuidada: empty state con prompts sugeridos, popover de sugerencias, reset de conversación, loading state al refrescar, markdown en respuestas, mobile-first.
+- SEO técnico completo: sitemap, robots, Open Graph image generada con `next/og`, favicon.
+- Deployado en Vercel. Listo para probar con los Demo prompts de la sección anterior.
