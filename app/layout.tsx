@@ -13,9 +13,50 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://web-chat-bot-one.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "CallBot — Asistente virtual de CallBotIA",
-  description: "Chat con IA agéntica: respuestas en streaming, herramientas y derivación a humano.",
+  description:
+    "Chat con IA agéntica: respuestas en streaming, tool calling, captación de leads y derivación a humano.",
+  keywords: [
+    "CallBotIA",
+    "chatbot IA",
+    "asistente virtual",
+    "OpenAI",
+    "Next.js",
+    "agente conversacional",
+  ],
+  authors: [{ name: "CallBotIA" }],
+  openGraph: {
+    title: "CallBot — Asistente virtual de CallBotIA",
+    description:
+      "Chat con IA agéntica: streaming en tiempo real, herramientas y derivación a humano.",
+    url: SITE_URL,
+    siteName: "CallBotIA",
+    locale: "es_AR",
+    type: "website",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "CallBot — Asistente virtual de CallBotIA",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CallBot — Asistente virtual de CallBotIA",
+    description:
+      "Chat con IA agéntica: streaming en tiempo real, herramientas y derivación a humano.",
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
